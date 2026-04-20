@@ -57,6 +57,25 @@ func TestOptionalSetListAndGetOptionalInterfaceSlice_unsetOptionalBlocks(t *test
 	require.Empty(t, getOptionalInterfaceSlice(d, "policy_statements"))
 }
 
+func TestOptionalBoolFromResourceData(t *testing.T) {
+	t.Parallel()
+	withTrue := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		"x": {Type: schema.TypeBool, Optional: true},
+	}, map[string]interface{}{"x": true})
+	require.True(t, optionalBoolFromResourceData(withTrue, "x", false))
+
+	unset := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		"x": {Type: schema.TypeBool, Optional: true},
+	}, map[string]interface{}{})
+	require.False(t, optionalBoolFromResourceData(unset, "x", true))
+
+	wrongType := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		"x": {Type: schema.TypeString, Optional: true},
+	}, map[string]interface{}{"x": "yes"})
+	// Non-bool value: use default
+	require.True(t, optionalBoolFromResourceData(wrongType, "x", true))
+}
+
 func TestPoliciesFromResourceData_nilPolicyNoPanic(t *testing.T) {
 	t.Parallel()
 

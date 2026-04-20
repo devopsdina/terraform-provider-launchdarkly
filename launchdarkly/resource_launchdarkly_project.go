@@ -38,7 +38,7 @@ func customizeProjectDiff(ctx context.Context, diff *schema.ResourceDiff, v inte
 			if err != nil {
 				return err
 			}
-			err = diff.SetNew(DEFAULT_CLIENT_SIDE_AVAILABILITY, []map[string]interface{}{{
+			err = resourceDiffSetNewSkipMissingKey(diff, DEFAULT_CLIENT_SIDE_AVAILABILITY, []map[string]interface{}{{
 				USING_ENVIRONMENT_ID: false,
 				USING_MOBILE_KEY:     true,
 			}})
@@ -190,7 +190,7 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	projectKey := d.Get(KEY).(string)
 	projName := d.Get(NAME)
 	projTags := stringsFromResourceData(d, TAGS)
-	includeInSnippet := d.Get(INCLUDE_IN_SNIPPET).(bool)
+	includeInSnippet := optionalBoolFromResourceData(d, INCLUDE_IN_SNIPPET, false)
 
 	snippetHasChange := d.HasChange(INCLUDE_IN_SNIPPET)
 	clientSideHasChange := d.HasChange(DEFAULT_CLIENT_SIDE_AVAILABILITY)
@@ -200,8 +200,8 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	_, includeInSnippetOk := d.GetOkExists(INCLUDE_IN_SNIPPET)
 	_, clientSideAvailabilityOk := d.GetOk(DEFAULT_CLIENT_SIDE_AVAILABILITY)
 	defaultClientSideAvailability := &ldapi.ClientSideAvailabilityPost{
-		UsingEnvironmentId: d.Get(fmt.Sprintf("%s.0.using_environment_id", DEFAULT_CLIENT_SIDE_AVAILABILITY)).(bool),
-		UsingMobileKey:     d.Get(fmt.Sprintf("%s.0.using_mobile_key", DEFAULT_CLIENT_SIDE_AVAILABILITY)).(bool),
+		UsingEnvironmentId: optionalBoolFromResourceData(d, fmt.Sprintf("%s.0.using_environment_id", DEFAULT_CLIENT_SIDE_AVAILABILITY), false),
+		UsingMobileKey:     optionalBoolFromResourceData(d, fmt.Sprintf("%s.0.using_mobile_key", DEFAULT_CLIENT_SIDE_AVAILABILITY), false),
 	}
 
 	patch := []ldapi.PatchOperation{
@@ -239,8 +239,8 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	flagsRequiredChanged := d.HasChange(REQUIRE_VIEW_ASSOCIATION_FOR_NEW_FLAGS)
 	segmentsRequiredChanged := d.HasChange(REQUIRE_VIEW_ASSOCIATION_FOR_NEW_SEGMENTS)
 	if flagsRequiredChanged || segmentsRequiredChanged {
-		flagsRequired := d.Get(REQUIRE_VIEW_ASSOCIATION_FOR_NEW_FLAGS).(bool)
-		segmentsRequired := d.Get(REQUIRE_VIEW_ASSOCIATION_FOR_NEW_SEGMENTS).(bool)
+		flagsRequired := optionalBoolFromResourceData(d, REQUIRE_VIEW_ASSOCIATION_FOR_NEW_FLAGS, false)
+		segmentsRequired := optionalBoolFromResourceData(d, REQUIRE_VIEW_ASSOCIATION_FOR_NEW_SEGMENTS, false)
 		err = patchProjectViewSettings(ctx, client, projectKey, flagsRequired, segmentsRequired, flagsRequiredChanged, segmentsRequiredChanged)
 		if err != nil {
 			return diag.Errorf("failed to update view association settings for project %q: %s", projectKey, err)

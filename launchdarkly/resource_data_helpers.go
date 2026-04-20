@@ -59,3 +59,17 @@ func optionalSetListFromAny(v interface{}) []interface{} {
 	}
 	return s.List()
 }
+
+// optionalBoolFromResourceData returns d.Get(key) as bool when it is a non-nil bool value.
+// When the key is missing from the schema or Get returns nil (e.g. Upjet-embedded provider), defaultVal is used.
+func optionalBoolFromResourceData(d *schema.ResourceData, key string, defaultVal bool) bool {
+	v := d.Get(key)
+	if v == nil {
+		return defaultVal
+	}
+	b, ok := v.(bool)
+	if !ok {
+		return defaultVal
+	}
+	return b
+}

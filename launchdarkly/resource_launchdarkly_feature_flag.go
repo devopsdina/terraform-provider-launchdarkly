@@ -84,17 +84,17 @@ func resourceFeatureFlagCreate(ctx context.Context, d *schema.ResourceData, meta
 	description := d.Get(DESCRIPTION).(string)
 	flagName := d.Get(NAME).(string)
 	tags := stringsFromResourceData(d, TAGS)
-	includeInSnippet := d.Get(INCLUDE_IN_SNIPPET).(bool)
+	includeInSnippet := optionalBoolFromResourceData(d, INCLUDE_IN_SNIPPET, false)
 	// GetOkExists is 'deprecated', but needed as optional booleans set to false return a 'false' ok value from GetOk
 	// Also not really deprecated as they are keeping it around pending a replacement https://github.com/hashicorp/terraform-plugin-sdk/pull/350#issuecomment-597888969
 	//nolint:staticcheck // SA1019
 	_, includeInSnippetOk := d.GetOkExists(INCLUDE_IN_SNIPPET)
 	_, clientSideAvailabilityOk := d.GetOk(CLIENT_SIDE_AVAILABILITY)
 	clientSideAvailability := &ldapi.ClientSideAvailabilityPost{
-		UsingEnvironmentId: d.Get("client_side_availability.0.using_environment_id").(bool),
-		UsingMobileKey:     d.Get("client_side_availability.0.using_mobile_key").(bool),
+		UsingEnvironmentId: optionalBoolFromResourceData(d, "client_side_availability.0.using_environment_id", false),
+		UsingMobileKey:     optionalBoolFromResourceData(d, "client_side_availability.0.using_mobile_key", false),
 	}
-	temporary := d.Get(TEMPORARY).(bool)
+	temporary := optionalBoolFromResourceData(d, TEMPORARY, false)
 
 	variations, err := variationsFromResourceData(d)
 	if err != nil {
@@ -218,7 +218,7 @@ func featureFlagUpdate(ctx context.Context, d *schema.ResourceData, metaRaw inte
 	description := d.Get(DESCRIPTION).(string)
 	name := d.Get(NAME).(string)
 	tags := stringsFromResourceData(d, TAGS)
-	includeInSnippet := d.Get(INCLUDE_IN_SNIPPET).(bool)
+	includeInSnippet := optionalBoolFromResourceData(d, INCLUDE_IN_SNIPPET, false)
 
 	snippetHasChange := d.HasChange(INCLUDE_IN_SNIPPET)
 	clientSideHasChange := d.HasChange(CLIENT_SIDE_AVAILABILITY)
@@ -227,12 +227,12 @@ func featureFlagUpdate(ctx context.Context, d *schema.ResourceData, metaRaw inte
 	//nolint:staticcheck // SA1019
 	_, includeInSnippetOk := d.GetOkExists(INCLUDE_IN_SNIPPET)
 	_, clientSideAvailabilityOk := d.GetOk(CLIENT_SIDE_AVAILABILITY)
-	temporary := d.Get(TEMPORARY).(bool)
+	temporary := optionalBoolFromResourceData(d, TEMPORARY, false)
 	customProperties := customPropertiesFromResourceData(d)
-	archived := d.Get(ARCHIVED).(bool)
+	archived := optionalBoolFromResourceData(d, ARCHIVED, false)
 	clientSideAvailability := &ldapi.ClientSideAvailabilityPost{
-		UsingEnvironmentId: d.Get("client_side_availability.0.using_environment_id").(bool),
-		UsingMobileKey:     d.Get("client_side_availability.0.using_mobile_key").(bool),
+		UsingEnvironmentId: optionalBoolFromResourceData(d, "client_side_availability.0.using_environment_id", false),
+		UsingMobileKey:     optionalBoolFromResourceData(d, "client_side_availability.0.using_mobile_key", false),
 	}
 
 	comment := "Terraform"
