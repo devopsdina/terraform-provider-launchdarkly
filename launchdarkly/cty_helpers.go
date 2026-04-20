@@ -1,7 +1,7 @@
 package launchdarkly
 
 import (
-	"github.com/zclconf/go-cty/cty"
+	"github.com/hashicorp/go-cty/cty"
 )
 
 func ctyObjectGetAttr(config cty.Value, attr string) cty.Value {

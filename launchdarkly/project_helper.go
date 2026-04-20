@@ -80,7 +80,7 @@ func projectRead(ctx context.Context, d *schema.ResourceData, meta interface{}, 
 
 		// iterate over the environment keys in the order defined by the config and look up the environment returned by
 		// LD's API
-		rawEnvs := d.Get(ENVIRONMENTS).([]interface{})
+		rawEnvs := getOptionalInterfaceSlice(d, ENVIRONMENTS)
 
 		envConfigKeys := rawEnvironmentConfigsToKeyList(rawEnvs)
 		envAddedMap := make(map[string]bool, len(project.Environments.Items))

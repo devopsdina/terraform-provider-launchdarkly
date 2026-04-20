@@ -16,12 +16,13 @@ import (
 func customizeProjectDiff(ctx context.Context, diff *schema.ResourceDiff, v interface{}) error {
 	config := diff.GetRawConfig()
 
-	// Below values will exist due to the schema, we need to check if they are all null
-	snippetInConfig := config.GetAttr(INCLUDE_IN_SNIPPET)
-	csaInConfig := config.GetAttr(DEFAULT_CLIENT_SIDE_AVAILABILITY)
+	// Below values will exist due to the schema, we need to check if they are all null.
+	// Use safe cty access for embedded providers (Upjet) where raw config may omit attributes.
+	snippetInConfig := ctyObjectGetAttr(config, INCLUDE_IN_SNIPPET)
+	csaInConfig := ctyObjectGetAttr(config, DEFAULT_CLIENT_SIDE_AVAILABILITY)
 
 	// If we have no keys in the CSA block in the config (length is 0) we know the customer hasn't set any CSA values
-	csaKeys := csaInConfig.AsValueSlice()
+	csaKeys := ctyValueListElements(csaInConfig)
 	if len(csaKeys) == 0 {
 		// When we have no values for either clienSideAvailability or includeInSnippet
 		// Force an UPDATE call by setting a new value for INCLUDE_IN_SNIPPET in the diff according to project defaults
@@ -254,8 +255,14 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 		return diag.Errorf("failed to load project %q before updating environments: %s", projectKey, handleLdapiErr(err))
 	}
 
-	environmentConfigs := newSchemaEnvList.([]interface{})
-	oldEnvironmentConfigs := oldSchemaEnvList.([]interface{})
+	environmentConfigs := interfaceSliceFromAny(newSchemaEnvList)
+	if environmentConfigs == nil {
+		environmentConfigs = []interface{}{}
+	}
+	oldEnvironmentConfigs := interfaceSliceFromAny(oldSchemaEnvList)
+	if oldEnvironmentConfigs == nil {
+		oldEnvironmentConfigs = []interface{}{}
+	}
 	oldEnvConfigsForCompare := make(map[string]map[string]interface{}, len(oldEnvironmentConfigs))
 	for _, env := range oldEnvironmentConfigs {
 		envConfig := env.(map[string]interface{})
@@ -303,7 +310,10 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	}
 	// we also want to delete environments that were previously tracked in state and have been removed from the config
 	old, _ := d.GetChange(ENVIRONMENTS)
-	oldEnvs := old.([]interface{})
+	oldEnvs := interfaceSliceFromAny(old)
+	if oldEnvs == nil {
+		oldEnvs = []interface{}{}
+	}
 	for _, env := range oldEnvs {
 		envConfig := env.(map[string]interface{})
 		envKey := envConfig[KEY].(string)

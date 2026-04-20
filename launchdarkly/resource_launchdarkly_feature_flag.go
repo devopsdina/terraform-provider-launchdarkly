@@ -30,9 +30,8 @@ func customizeFeatureFlagDiff(ctx context.Context, diff *schema.ResourceDiff, me
 	}
 
 	if viewSettings.RequireViewAssociationForNewFlags {
-		viewKeysRaw := diff.Get(VIEW_KEYS)
-		viewKeys, ok := viewKeysRaw.(*schema.Set)
-		if !ok || viewKeys == nil || viewKeys.Len() == 0 {
+		viewKeys := optionalSchemaSetFromInterface(diff.Get(VIEW_KEYS))
+		if viewKeys == nil || viewKeys.Len() == 0 {
 			return fmt.Errorf("project %q requires new flags to be associated with at least one view. Please set the 'view_keys' attribute", projectKey)
 		}
 	}
@@ -140,9 +139,10 @@ func resourceFeatureFlagCreate(ctx context.Context, d *schema.ResourceData, meta
 	// Check if view_keys is specified - if so, we need to use raw HTTP to include it in creation
 	var viewKeys []string
 	if viewKeysRaw, ok := d.GetOk(VIEW_KEYS); ok {
-		viewKeysSet := viewKeysRaw.(*schema.Set)
-		for _, v := range viewKeysSet.List() {
-			viewKeys = append(viewKeys, v.(string))
+		if viewKeysSet := optionalSchemaSetFromInterface(viewKeysRaw); viewKeysSet != nil {
+			for _, v := range viewKeysSet.List() {
+				viewKeys = append(viewKeys, v.(string))
+			}
 		}
 	}
 
@@ -340,7 +340,7 @@ func featureFlagUpdate(ctx context.Context, d *schema.ResourceData, metaRaw inte
 				return diag.Errorf("failed to create beta client for view linking: %v", err)
 			}
 
-			desiredViewKeys := interfaceSliceToStringSlice(viewKeysRaw.(*schema.Set).List())
+			desiredViewKeys := stringListFromOptionalSetValue(viewKeysRaw)
 
 			// Validate that all specified views exist
 			for _, viewKey := range desiredViewKeys {
@@ -369,7 +369,7 @@ func featureFlagUpdate(ctx context.Context, d *schema.ResourceData, metaRaw inte
 			if len(viewsToRemove) > 0 && !isCreate {
 				oldViewKeysRaw, _ := d.GetChange(VIEW_KEYS)
 				if oldViewKeysRaw != nil {
-					oldViewKeys := interfaceSliceToStringSlice(oldViewKeysRaw.(*schema.Set).List())
+					oldViewKeys := stringListFromOptionalSetValue(oldViewKeysRaw)
 					unexpectedViews := difference(viewsToRemove, oldViewKeys)
 					if len(unexpectedViews) > 0 {
 						log.Printf(
@@ -407,7 +407,7 @@ func featureFlagUpdate(ctx context.Context, d *schema.ResourceData, metaRaw inte
 
 			oldViewKeysRaw, _ := d.GetChange(VIEW_KEYS)
 			if oldViewKeysRaw != nil {
-				oldViewKeys := interfaceSliceToStringSlice(oldViewKeysRaw.(*schema.Set).List())
+				oldViewKeys := stringListFromOptionalSetValue(oldViewKeysRaw)
 				for _, viewKey := range oldViewKeys {
 					err = unlinkResourcesFromView(betaClient, projectKey, viewKey, FLAGS, []string{key})
 					if err != nil {

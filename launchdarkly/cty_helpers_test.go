@@ -3,8 +3,8 @@ package launchdarkly
 import (
 	"testing"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/stretchr/testify/require"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestCtyObjectGetAttr_missingAttributeReturnsNull(t *testing.T) {

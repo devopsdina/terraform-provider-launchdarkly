@@ -31,9 +31,8 @@ func customizeSegmentDiff(ctx context.Context, diff *schema.ResourceDiff, meta i
 	}
 
 	if viewSettings.RequireViewAssociationForNewSegments {
-		viewKeysRaw := diff.Get(VIEW_KEYS)
-		viewKeys, ok := viewKeysRaw.(*schema.Set)
-		if !ok || viewKeys == nil || viewKeys.Len() == 0 {
+		viewKeys := optionalSchemaSetFromInterface(diff.Get(VIEW_KEYS))
+		if viewKeys == nil || viewKeys.Len() == 0 {
 			return fmt.Errorf("project %q requires new segments to be associated with at least one view. Please set the 'view_keys' attribute", projectKey)
 		}
 	}
@@ -104,9 +103,10 @@ func resourceSegmentCreate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	// Check if view_keys is specified - if so, we need to use raw HTTP to include it in creation
 	var viewKeys []string
 	if viewKeysRaw, ok := d.GetOk(VIEW_KEYS); ok {
-		viewKeysSet := viewKeysRaw.(*schema.Set)
-		for _, v := range viewKeysSet.List() {
-			viewKeys = append(viewKeys, v.(string))
+		if viewKeysSet := optionalSchemaSetFromInterface(viewKeysRaw); viewKeysSet != nil {
+			for _, v := range viewKeysSet.List() {
+				viewKeys = append(viewKeys, v.(string))
+			}
 		}
 	}
 
@@ -170,8 +170,8 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	description := d.Get(DESCRIPTION).(string)
 	name := d.Get(NAME).(string)
 	tags := stringsFromResourceData(d, TAGS)
-	included := d.Get(INCLUDED).([]interface{})
-	excluded := d.Get(EXCLUDED).([]interface{})
+	included := getOptionalInterfaceSlice(d, INCLUDED)
+	excluded := getOptionalInterfaceSlice(d, EXCLUDED)
 	includedContexts := segmentTargetsFromResourceData(d, segmentTargetOptions{Included: true})
 	excludedContexts := segmentTargetsFromResourceData(d, segmentTargetOptions{Excluded: true})
 	rules, err := segmentRulesFromResourceData(d, RULES)
@@ -214,7 +214,7 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 				return diag.Errorf("failed to create beta client for view linking: %v", err)
 			}
 
-			desiredViewKeys := interfaceSliceToStringSlice(viewKeysRaw.(*schema.Set).List())
+			desiredViewKeys := stringListFromOptionalSetValue(viewKeysRaw)
 
 			// Get the environment ID
 			var env *ldapi.Environment
@@ -253,7 +253,7 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 			if len(viewsToRemove) > 0 {
 				oldViewKeysRaw, _ := d.GetChange(VIEW_KEYS)
 				if oldViewKeysRaw != nil {
-					oldViewKeys := interfaceSliceToStringSlice(oldViewKeysRaw.(*schema.Set).List())
+					oldViewKeys := stringListFromOptionalSetValue(oldViewKeysRaw)
 					unexpectedViews := difference(viewsToRemove, oldViewKeys)
 					if len(unexpectedViews) > 0 {
 						log.Printf(
@@ -309,7 +309,7 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 					return diag.Errorf("failed to get environment %q in project %q: %s", envKey, projectKey, handleLdapiErr(err))
 				}
 
-				oldViewKeys := interfaceSliceToStringSlice(oldViewKeysRaw.(*schema.Set).List())
+				oldViewKeys := stringListFromOptionalSetValue(oldViewKeysRaw)
 				for _, viewKey := range oldViewKeys {
 					segmentIdentifiers := []ViewSegmentIdentifier{{
 						EnvironmentId: env.Id,

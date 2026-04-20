@@ -41,3 +41,21 @@ func interfaceSliceFromAny(v interface{}) []interface{} {
 	}
 	return s
 }
+
+// stringListFromOptionalSetValue converts a *schema.Set wrapped in interface{} (e.g. diff.Get / GetChange)
+// to a []string for LaunchDarkly API calls. Nil or wrong type yields nil.
+func stringListFromOptionalSetValue(v interface{}) []string {
+	s := optionalSchemaSetFromInterface(v)
+	if s == nil {
+		return nil
+	}
+	return interfaceSliceToStringSlice(s.List())
+}
+
+func optionalSetListFromAny(v interface{}) []interface{} {
+	s := optionalSchemaSetFromInterface(v)
+	if s == nil {
+		return nil
+	}
+	return s.List()
+}
