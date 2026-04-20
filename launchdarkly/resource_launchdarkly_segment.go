@@ -91,7 +91,22 @@ This resource allows you to create and manage segments within your LaunchDarkly 
 func resourceSegmentCreate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := d.Get(ENV_KEY).(string)
+	envKey := trimmedStringAttr(d, ENV_KEY)
+
+	if exists, err := projectExists(projectKey, client); !exists {
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		return diag.Errorf("cannot find project with key %q", projectKey)
+	}
+	if exists, err := environmentExists(projectKey, envKey, client); !exists {
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		return diag.Errorf(
+			"environment %q not found in project %q — env_key must match the LaunchDarkly environment **key**. Create nested `environments` or a `launchdarkly_environment` first.",
+			envKey, projectKey)
+	}
 
 	key := d.Get(KEY).(string)
 	description := d.Get(DESCRIPTION).(string)
@@ -166,7 +181,7 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	client := metaRaw.(*Client)
 	key := d.Get(KEY).(string)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := d.Get(ENV_KEY).(string)
+	envKey := trimmedStringAttr(d, ENV_KEY)
 	description := d.Get(DESCRIPTION).(string)
 	name := d.Get(NAME).(string)
 	tags := stringsFromResourceData(d, TAGS)
@@ -332,7 +347,7 @@ func resourceSegmentDelete(ctx context.Context, d *schema.ResourceData, metaRaw 
 
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := d.Get(ENV_KEY).(string)
+	envKey := trimmedStringAttr(d, ENV_KEY)
 	key := d.Get(KEY).(string)
 
 	var err error
@@ -350,7 +365,7 @@ func resourceSegmentDelete(ctx context.Context, d *schema.ResourceData, metaRaw 
 func resourceSegmentExists(d *schema.ResourceData, metaRaw interface{}) (bool, error) {
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := d.Get(ENV_KEY).(string)
+	envKey := trimmedStringAttr(d, ENV_KEY)
 	key := d.Get(KEY).(string)
 
 	var res *http.Response
@@ -378,7 +393,9 @@ func resourceSegmentImport(d *schema.ResourceData, meta interface{}) ([]*schema.
 
 	parts := strings.SplitN(d.Id(), "/", 3)
 
-	projectKey, envKey, segmentKey := parts[0], parts[1], parts[2]
+	projectKey := strings.TrimSpace(parts[0])
+	envKey := strings.TrimSpace(parts[1])
+	segmentKey := strings.TrimSpace(parts[2])
 
 	_ = d.Set(PROJECT_KEY, projectKey)
 	_ = d.Set(ENV_KEY, envKey)

@@ -1,6 +1,8 @@
 package launchdarkly
 
 import (
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -72,4 +74,18 @@ func optionalBoolFromResourceData(d *schema.ResourceData, key string, defaultVal
 		return defaultVal
 	}
 	return b
+}
+
+// trimmedStringAttr returns strings.TrimSpace(d.Get(key)) for string attributes; wrong or nil type yields "".
+// Useful for environment keys where accidental whitespace breaks GetEnvironment(project, key).
+func trimmedStringAttr(d *schema.ResourceData, key string) string {
+	v := d.Get(key)
+	if v == nil {
+		return ""
+	}
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(s)
 }

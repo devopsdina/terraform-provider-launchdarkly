@@ -86,7 +86,7 @@ func featureFlagEnvironmentRead(ctx context.Context, d *schema.ResourceData, raw
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	envKey := d.Get(ENV_KEY).(string)
+	envKey := trimmedStringAttr(d, ENV_KEY)
 
 	envExists, err := environmentExists(projectKey, envKey, client)
 
@@ -183,9 +183,8 @@ func featureFlagEnvironmentRead(ctx context.Context, d *schema.ResourceData, raw
 }
 
 func patchFlagEnvPath(d *schema.ResourceData, op string) string {
-	path := []string{"/environments"}
-	path = append(path, d.Get(ENV_KEY).(string))
-	path = append(path, op)
+	envKey := trimmedStringAttr(d, ENV_KEY)
+	path := []string{"/environments", envKey, op}
 
 	return strings.Join(path, "/")
 }

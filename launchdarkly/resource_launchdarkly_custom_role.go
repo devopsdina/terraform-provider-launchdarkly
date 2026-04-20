@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -69,7 +70,7 @@ This resource allows you to create and manage custom roles within your LaunchDar
 
 func resourceCustomRoleCreate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
-	customRoleKey := d.Get(KEY).(string)
+	customRoleKey := trimmedStringAttr(d, KEY)
 	customRoleName := d.Get(NAME).(string)
 	customRoleDescription := d.Get(DESCRIPTION).(string)
 	customRoleBasePermissions := d.Get(BASE_PERMISSIONS).(string)
@@ -92,15 +93,20 @@ func resourceCustomRoleCreate(ctx context.Context, d *schema.ResourceData, metaR
 		customRoleBody.BasePermissions = ldapi.PtrString(customRoleBasePermissions)
 	}
 
+	var created *ldapi.CustomRole
 	err = client.withConcurrency(client.ctx, func() error {
-		_, _, err = client.ld.CustomRolesApi.PostCustomRole(client.ctx).CustomRolePost(customRoleBody).Execute()
+		created, _, err = client.ld.CustomRolesApi.PostCustomRole(client.ctx).CustomRolePost(customRoleBody).Execute()
 		return err
 	})
 	if err != nil {
 		return diag.Errorf("failed to create custom role with name %q: %s", customRoleName, handleLdapiErr(err))
 	}
 
-	d.SetId(customRoleKey)
+	id := customRoleKey
+	if created != nil && created.Key != "" {
+		id = created.Key
+	}
+	d.SetId(id)
 	return resourceCustomRoleRead(ctx, d, metaRaw)
 }
 
@@ -131,10 +137,18 @@ func resourceCustomRoleRead(ctx context.Context, d *schema.ResourceData, metaRaw
 		return diag.Errorf("failed to get custom role with id %q: %s", customRoleID, handleLdapiErr(err))
 	}
 
-	_ = d.Set(KEY, customRole.Key)
-	_ = d.Set(NAME, customRole.Name)
-	_ = d.Set(DESCRIPTION, customRole.Description)
-	_ = d.Set(BASE_PERMISSIONS, customRole.BasePermissions)
+	_ = resourceDataSetSkipMissingKey(d, KEY, customRole.Key)
+	_ = resourceDataSetSkipMissingKey(d, NAME, customRole.Name)
+	desc := ""
+	if customRole.Description != nil {
+		desc = *customRole.Description
+	}
+	_ = resourceDataSetSkipMissingKey(d, DESCRIPTION, desc)
+	basePerms := ""
+	if customRole.BasePermissions != nil {
+		basePerms = *customRole.BasePermissions
+	}
+	_ = resourceDataSetSkipMissingKey(d, BASE_PERMISSIONS, basePerms)
 
 	// Because "policy" is now deprecated in favor of "policy_statements", only set "policy" if it has
 	// already been set by the user.
@@ -145,9 +159,9 @@ func resourceCustomRoleRead(ctx context.Context, d *schema.ResourceData, metaRaw
 	// 	  }
 	if _, ok := d.GetOk(POLICY); ok {
 		policies := policiesToResourceData(customRole.Policy)
-		err = d.Set(POLICY, policies)
+		err = resourceDataSetSkipMissingKey(d, POLICY, policies)
 	} else {
-		err = d.Set(POLICY_STATEMENTS, policyStatementsToResourceData(statementsToStatementReps(customRole.Policy)))
+		err = resourceDataSetSkipMissingKey(d, POLICY_STATEMENTS, policyStatementsToResourceData(statementsToStatementReps(customRole.Policy)))
 	}
 
 	if err != nil {
@@ -158,7 +172,11 @@ func resourceCustomRoleRead(ctx context.Context, d *schema.ResourceData, metaRaw
 
 func resourceCustomRoleUpdate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
-	customRoleKey := d.Get(KEY).(string)
+	// Prefer resource id (LaunchDarkly role key); KEY may be absent when the schema is embedded/stripped.
+	customRoleKey := strings.TrimSpace(d.Id())
+	if customRoleKey == "" {
+		customRoleKey = trimmedStringAttr(d, KEY)
+	}
 	customRoleName := d.Get(NAME).(string)
 	customRoleDescription := d.Get(DESCRIPTION).(string)
 	customRoleBasePermissions := d.Get(BASE_PERMISSIONS).(string)
@@ -233,7 +251,8 @@ func customRoleExists(customRoleKey string, client *Client) (bool, error) {
 }
 
 func resourceCustomRoleImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	_ = d.Set(KEY, d.Id())
+	key := strings.TrimSpace(d.Id())
+	_ = d.Set(KEY, key)
 
 	return []*schema.ResourceData{d}, nil
 }
