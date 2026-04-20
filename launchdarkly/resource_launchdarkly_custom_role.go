@@ -74,7 +74,7 @@ func resourceCustomRoleCreate(ctx context.Context, d *schema.ResourceData, metaR
 	customRoleDescription := d.Get(DESCRIPTION).(string)
 	customRoleBasePermissions := d.Get(BASE_PERMISSIONS).(string)
 	customRolePolicies := policiesFromResourceData(d)
-	policyStatements, err := policyStatementsFromResourceData(d.Get(POLICY_STATEMENTS).([]interface{}))
+	policyStatements, err := policyStatementsFromResourceData(getOptionalInterfaceSlice(d, POLICY_STATEMENTS))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -163,7 +163,7 @@ func resourceCustomRoleUpdate(ctx context.Context, d *schema.ResourceData, metaR
 	customRoleDescription := d.Get(DESCRIPTION).(string)
 	customRoleBasePermissions := d.Get(BASE_PERMISSIONS).(string)
 	customRolePolicies := policiesFromResourceData(d)
-	policyStatements, err := policyStatementsFromResourceData(d.Get(POLICY_STATEMENTS).([]interface{}))
+	policyStatements, err := policyStatementsFromResourceData(getOptionalInterfaceSlice(d, POLICY_STATEMENTS))
 	if err != nil {
 		return diag.FromErr(err)
 	}
