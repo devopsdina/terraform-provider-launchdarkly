@@ -34,7 +34,7 @@ func customizeProjectDiff(ctx context.Context, diff *schema.ResourceDiff, v inte
 			// AND the customer removes the INCLUDE_IN_SNIPPET key from the config without replacing with defaultCSA
 			// The read would assume no changes are needed, HOWEVER we need to jump back to LD set defaults
 			// Hence the setting below
-			err := diff.SetNew(INCLUDE_IN_SNIPPET, false)
+			err := resourceDiffSetNewSkipMissingKey(diff, INCLUDE_IN_SNIPPET, false)
 			if err != nil {
 				return err
 			}
