@@ -70,7 +70,11 @@ This resource allows you to create and manage custom roles within your LaunchDar
 
 func resourceCustomRoleCreate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
-	customRoleKey := trimmedStringAttr(d, KEY)
+	customRoleKey := effectiveCustomRoleKey(d)
+	if customRoleKey == "" {
+		return diag.Errorf(
+			"%s is required for custom role creation. If the embedded schema omits it, set the Terraform resource id (Crossplane external-name) to the LaunchDarkly role key before create.", KEY)
+	}
 	customRoleName := d.Get(NAME).(string)
 	customRoleDescription := d.Get(DESCRIPTION).(string)
 	customRoleBasePermissions := d.Get(BASE_PERMISSIONS).(string)
@@ -137,6 +141,10 @@ func resourceCustomRoleRead(ctx context.Context, d *schema.ResourceData, metaRaw
 		return diag.Errorf("failed to get custom role with id %q: %s", customRoleID, handleLdapiErr(err))
 	}
 
+	if customRole.Key != "" {
+		d.SetId(customRole.Key)
+	}
+
 	_ = resourceDataSetSkipMissingKey(d, KEY, customRole.Key)
 	_ = resourceDataSetSkipMissingKey(d, NAME, customRole.Name)
 	desc := ""
@@ -172,10 +180,9 @@ func resourceCustomRoleRead(ctx context.Context, d *schema.ResourceData, metaRaw
 
 func resourceCustomRoleUpdate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
-	// Prefer resource id (LaunchDarkly role key); KEY may be absent when the schema is embedded/stripped.
-	customRoleKey := strings.TrimSpace(d.Id())
+	customRoleKey := effectiveCustomRoleKey(d)
 	if customRoleKey == "" {
-		customRoleKey = trimmedStringAttr(d, KEY)
+		return diag.Errorf("cannot update custom role: %s is empty and resource id is empty", KEY)
 	}
 	customRoleName := d.Get(NAME).(string)
 	customRoleDescription := d.Get(DESCRIPTION).(string)

@@ -90,3 +90,41 @@ func TestPoliciesFromResourceData_nilPolicyNoPanic(t *testing.T) {
 		_ = policiesFromResourceData(d)
 	})
 }
+
+func TestEffectiveEnvKeyFromIDOrAttr(t *testing.T) {
+	t.Parallel()
+
+	withAttr := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		ENV_KEY: {Type: schema.TypeString, Required: true},
+	}, map[string]interface{}{ENV_KEY: "  name-dev  "})
+	require.Equal(t, "name-dev", effectiveEnvKeyFromIDOrAttr(withAttr))
+
+	fromID := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		ENV_KEY: {Type: schema.TypeString, Optional: true},
+	}, map[string]interface{}{})
+	fromID.SetId("crossplane-project/name-dev/my-flag")
+	require.Equal(t, "name-dev", effectiveEnvKeyFromIDOrAttr(fromID))
+
+	attrWins := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		ENV_KEY: {Type: schema.TypeString, Optional: true},
+	}, map[string]interface{}{ENV_KEY: "production"})
+	attrWins.SetId("proj/other-env/flag")
+	require.Equal(t, "production", effectiveEnvKeyFromIDOrAttr(attrWins))
+}
+
+func TestEffectiveCustomRoleKey(t *testing.T) {
+	t.Parallel()
+
+	withKey := schema.TestResourceDataRaw(t, resourceCustomRole().Schema, map[string]interface{}{
+		KEY:              "my-role",
+		NAME:             "n",
+		BASE_PERMISSIONS: "reader",
+	})
+	require.Equal(t, "my-role", effectiveCustomRoleKey(withKey))
+
+	fromID := schema.TestResourceDataRaw(t, map[string]*schema.Schema{
+		KEY: {Type: schema.TypeString, Optional: true},
+	}, map[string]interface{}{})
+	fromID.SetId("  allow-product-manager-tag  ")
+	require.Equal(t, "allow-product-manager-tag", effectiveCustomRoleKey(fromID))
+}

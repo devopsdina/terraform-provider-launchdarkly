@@ -91,7 +91,12 @@ This resource allows you to create and manage segments within your LaunchDarkly 
 func resourceSegmentCreate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf(
+			"%s is required (LaunchDarkly environment key). If the embedded schema omits it, set resource id to project_key/env_key/segment_key before create.",
+			ENV_KEY)
+	}
 
 	if exists, err := projectExists(projectKey, client); !exists {
 		if err != nil {
@@ -181,7 +186,10 @@ func resourceSegmentUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 	client := metaRaw.(*Client)
 	key := d.Get(KEY).(string)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf("%s is empty and resource id %q is not project_key/env_key/segment_key", ENV_KEY, d.Id())
+	}
 	description := d.Get(DESCRIPTION).(string)
 	name := d.Get(NAME).(string)
 	tags := stringsFromResourceData(d, TAGS)
@@ -347,7 +355,10 @@ func resourceSegmentDelete(ctx context.Context, d *schema.ResourceData, metaRaw 
 
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf("%s is empty and resource id %q is not project_key/env_key/segment_key", ENV_KEY, d.Id())
+	}
 	key := d.Get(KEY).(string)
 
 	var err error
@@ -365,7 +376,10 @@ func resourceSegmentDelete(ctx context.Context, d *schema.ResourceData, metaRaw 
 func resourceSegmentExists(d *schema.ResourceData, metaRaw interface{}) (bool, error) {
 	client := metaRaw.(*Client)
 	projectKey := d.Get(PROJECT_KEY).(string)
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return false, fmt.Errorf("%s is required, or resource id must be project_key/env_key/segment_key", ENV_KEY)
+	}
 	key := d.Get(KEY).(string)
 
 	var res *http.Response

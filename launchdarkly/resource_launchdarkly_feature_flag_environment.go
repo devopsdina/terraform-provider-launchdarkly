@@ -49,7 +49,12 @@ func resourceFeatureFlagEnvironmentCreate(ctx context.Context, d *schema.Resourc
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf(
+			"%s is required and must be the LaunchDarkly environment key (not the display name). If the embedded schema omits it, set resource id to project_key/env_key/flag_key before create.",
+			ENV_KEY)
+	}
 
 	if exists, err := projectExists(projectKey, client); !exists {
 		if err != nil {
@@ -147,7 +152,10 @@ func resourceFeatureFlagEnvironmentUpdate(ctx context.Context, d *schema.Resourc
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf("%s is empty and resource id %q is not project_key/env_key/flag_key", ENV_KEY, d.Id())
+	}
 
 	if exists, err := projectExists(projectKey, client); !exists {
 		if err != nil {
@@ -238,7 +246,10 @@ func resourceFeatureFlagEnvironmentDelete(ctx context.Context, d *schema.Resourc
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	envKey := trimmedStringAttr(d, ENV_KEY)
+	envKey := effectiveEnvKeyFromIDOrAttr(d)
+	if envKey == "" {
+		return diag.Errorf("%s is empty and resource id %q is not project_key/env_key/flag_key", ENV_KEY, d.Id())
+	}
 
 	if exists, err := projectExists(projectKey, client); !exists {
 		if err != nil {

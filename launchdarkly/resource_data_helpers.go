@@ -89,3 +89,30 @@ func trimmedStringAttr(d *schema.ResourceData, key string) string {
 	}
 	return strings.TrimSpace(s)
 }
+
+// effectiveEnvKeyFromIDOrAttr returns ENV_KEY from config when set; otherwise parses env_key from
+// resource id "project_key/env_key/flag_key" or "project_key/env_key/segment_key" (used when Upjet
+// omits env_key from the embedded schema but external-name/id preserves the triple).
+func effectiveEnvKeyFromIDOrAttr(d *schema.ResourceData) string {
+	if k := trimmedStringAttr(d, ENV_KEY); k != "" {
+		return k
+	}
+	id := strings.TrimSpace(d.Id())
+	if strings.Count(id, "/") != 2 {
+		return ""
+	}
+	parts := strings.SplitN(id, "/", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
+// effectiveCustomRoleKey returns KEY from config when set; otherwise the Terraform resource id
+// (Crossplane external-name / observe id), which must be the LaunchDarkly custom role key.
+func effectiveCustomRoleKey(d *schema.ResourceData) string {
+	if k := trimmedStringAttr(d, KEY); k != "" {
+		return k
+	}
+	return strings.TrimSpace(d.Id())
+}
