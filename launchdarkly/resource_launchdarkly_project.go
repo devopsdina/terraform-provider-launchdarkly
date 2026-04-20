@@ -16,6 +16,14 @@ import (
 func customizeProjectDiff(ctx context.Context, diff *schema.ResourceDiff, v interface{}) error {
 	config := diff.GetRawConfig()
 
+	// Upjet may omit both deprecated IIS/CSA attributes from the embedded schema entirely; skip this
+	// CustomizeDiff workaround when neither appears on the raw config object type (avoids SetNew noise).
+	if ty := config.Type(); ty.IsObjectType() {
+		if !ty.HasAttribute(INCLUDE_IN_SNIPPET) && !ty.HasAttribute(DEFAULT_CLIENT_SIDE_AVAILABILITY) {
+			return nil
+		}
+	}
+
 	// Below values will exist due to the schema, we need to check if they are all null.
 	// Use safe cty access for embedded providers (Upjet) where raw config may omit attributes.
 	snippetInConfig := ctyObjectGetAttr(config, INCLUDE_IN_SNIPPET)

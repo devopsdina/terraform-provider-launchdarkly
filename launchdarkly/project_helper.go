@@ -117,7 +117,7 @@ func projectRead(ctx context.Context, d *schema.ResourceData, meta interface{}, 
 		return diag.Errorf("could not set tags on project with key %q: %v", project.Key, err)
 	}
 
-	err = d.Set(DEFAULT_CLIENT_SIDE_AVAILABILITY, clientSideAvailability)
+	err = resourceDataSetSkipMissingKey(d, DEFAULT_CLIENT_SIDE_AVAILABILITY, clientSideAvailability)
 	if err != nil {
 		return diag.Errorf("could not set default_client_side_availability on project with key %q: %v", project.Key, err)
 	}

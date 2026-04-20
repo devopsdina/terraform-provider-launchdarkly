@@ -1,6 +1,7 @@
 package launchdarkly
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -10,17 +11,17 @@ import (
 // dropping deprecated attributes) does not define attr, so ResourceDiff.SetNew or ResourceData.Set
 // rejects the write.
 func isOmittedEmbeddedSchemaAttrErr(err error, attr string) bool {
-	if err == nil {
-		return false
-	}
-	s := err.Error()
-	// resource_diff.checkKey: SetNew: invalid key: <attr>
-	if strings.Contains(s, "invalid key: "+attr) {
-		return true
-	}
-	// MapFieldWriter.WriteField: Invalid address to set: []string{"<attr>"} (and similar)
-	if strings.Contains(s, "Invalid address to set") && strings.Contains(s, attr) {
-		return true
+	for err != nil {
+		s := err.Error()
+		// SDK messages vary by version and may be wrapped (e.g. "cannot compute the instance diff").
+		if strings.Contains(s, "invalid key") && strings.Contains(s, attr) {
+			return true
+		}
+		// MapFieldWriter.WriteField: Invalid address to set: []string{"<attr>"} (and similar)
+		if strings.Contains(s, "Invalid address to set") && strings.Contains(s, attr) {
+			return true
+		}
+		err = errors.Unwrap(err)
 	}
 	return false
 }

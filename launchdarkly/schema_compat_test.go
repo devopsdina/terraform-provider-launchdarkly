@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func TestIsOmittedEmbeddedSchemaAttrErr_wrapped(t *testing.T) {
+	inner := fmt.Errorf("SetNew: invalid key: include_in_snippet")
+	wrapped := fmt.Errorf("cannot compute the instance diff: %w", inner)
+	if !isOmittedEmbeddedSchemaAttrErr(wrapped, "include_in_snippet") {
+		t.Fatal("expected wrapped invalid key error to match")
+	}
+}
+
 func TestIsOmittedEmbeddedSchemaAttrErr(t *testing.T) {
 	tests := []struct {
 		name   string
