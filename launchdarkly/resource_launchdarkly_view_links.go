@@ -118,7 +118,7 @@ func resourceViewLinksCreate(ctx context.Context, d *schema.ResourceData, metaRa
 
 	// Link flags if specified
 	if flagsRaw, ok := d.GetOk(FLAGS); ok {
-		flags := interfaceSliceToStringSlice(flagsRaw.(*schema.Set).List())
+		flags := stringListFromOptionalSetValue(flagsRaw)
 		err = linkResourcesToView(betaClient, projectKey, viewKey, FLAGS, flags)
 		if err != nil {
 			return diag.Errorf("failed to link flags to view %q in project %q: %s", viewKey, projectKey, err)
@@ -127,7 +127,7 @@ func resourceViewLinksCreate(ctx context.Context, d *schema.ResourceData, metaRa
 
 	// Link segments if specified
 	if segmentsRaw, ok := d.GetOk(SEGMENTS); ok {
-		segments := segmentsRaw.(*schema.Set).List()
+		segments := optionalSetListFromAny(segmentsRaw)
 		segmentIdentifiers := make([]ViewSegmentIdentifier, len(segments))
 		for i, seg := range segments {
 			segMap := seg.(map[string]interface{})
@@ -217,8 +217,8 @@ func resourceViewLinksUpdate(ctx context.Context, d *schema.ResourceData, metaRa
 
 	if d.HasChange(FLAGS) {
 		oldFlagsRaw, newFlagsRaw := d.GetChange(FLAGS)
-		oldFlags := interfaceSliceToStringSlice(oldFlagsRaw.(*schema.Set).List())
-		newFlags := interfaceSliceToStringSlice(newFlagsRaw.(*schema.Set).List())
+		oldFlags := stringListFromOptionalSetValue(oldFlagsRaw)
+		newFlags := stringListFromOptionalSetValue(newFlagsRaw)
 
 		// Calculate flags to add and remove
 		flagsToAdd := difference(newFlags, oldFlags)
@@ -243,8 +243,8 @@ func resourceViewLinksUpdate(ctx context.Context, d *schema.ResourceData, metaRa
 
 	if d.HasChange(SEGMENTS) {
 		oldSegmentsRaw, newSegmentsRaw := d.GetChange(SEGMENTS)
-		oldSegments := oldSegmentsRaw.(*schema.Set).List()
-		newSegments := newSegmentsRaw.(*schema.Set).List()
+		oldSegments := optionalSetListFromAny(oldSegmentsRaw)
+		newSegments := optionalSetListFromAny(newSegmentsRaw)
 
 		// Convert to segment identifiers
 		oldSegmentIdentifiers := make([]ViewSegmentIdentifier, len(oldSegments))
@@ -302,7 +302,7 @@ func resourceViewLinksDelete(ctx context.Context, d *schema.ResourceData, metaRa
 
 	// Unlink all flags
 	if flagsRaw, ok := d.GetOk(FLAGS); ok {
-		flags := interfaceSliceToStringSlice(flagsRaw.(*schema.Set).List())
+		flags := stringListFromOptionalSetValue(flagsRaw)
 		if len(flags) > 0 {
 			err = unlinkResourcesFromView(betaClient, projectKey, viewKey, FLAGS, flags)
 			if err != nil {
@@ -313,7 +313,7 @@ func resourceViewLinksDelete(ctx context.Context, d *schema.ResourceData, metaRa
 
 	// Unlink all segments
 	if segmentsRaw, ok := d.GetOk(SEGMENTS); ok {
-		segments := segmentsRaw.(*schema.Set).List()
+		segments := optionalSetListFromAny(segmentsRaw)
 		if len(segments) > 0 {
 			segmentIdentifiers := make([]ViewSegmentIdentifier, len(segments))
 			for i, seg := range segments {
