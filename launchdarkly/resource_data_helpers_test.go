@@ -23,9 +23,10 @@ func TestOptionalSchemaSetFromInterface(t *testing.T) {
 func TestInterfaceSliceFromAny(t *testing.T) {
 	t.Parallel()
 
-	require.Nil(t, interfaceSliceFromAny(nil))
-	require.Nil(t, interfaceSliceFromAny(42))
-	require.Nil(t, interfaceSliceFromAny("slice"))
+	require.NotNil(t, interfaceSliceFromAny(nil), "nil should normalize to empty slice, not nil")
+	require.Empty(t, interfaceSliceFromAny(nil))
+	require.Empty(t, interfaceSliceFromAny(42))
+	require.Empty(t, interfaceSliceFromAny("slice"))
 
 	sl := []interface{}{"a", "b"}
 	require.Equal(t, sl, interfaceSliceFromAny(sl))

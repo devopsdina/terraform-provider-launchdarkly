@@ -45,3 +45,21 @@ func TestCtyBoolTrue(t *testing.T) {
 	require.True(t, ctyBoolTrue(cty.True))
 	require.False(t, ctyBoolTrue(cty.False))
 }
+
+func TestRawConfigHasAnyAttr(t *testing.T) {
+	t.Parallel()
+
+	require.False(t, rawConfigHasAnyAttr(cty.NullVal(cty.DynamicPseudoType), "x"))
+	require.False(t, rawConfigHasAnyAttr(cty.EmptyObjectVal, "x"))
+	require.False(t, rawConfigHasAnyAttr(cty.StringVal("nope"), "x"))
+
+	objA := cty.ObjectVal(map[string]cty.Value{"a": cty.BoolVal(true)})
+	require.True(t, rawConfigHasAnyAttr(objA, "a"))
+	require.False(t, rawConfigHasAnyAttr(objA, "b"))
+	require.True(t, rawConfigHasAnyAttr(objA, "missing", "a"))
+
+	// Null value of an object type still carries the type's attribute set.
+	nullTyped := cty.NullVal(cty.Object(map[string]cty.Type{"a": cty.Bool}))
+	require.True(t, rawConfigHasAnyAttr(nullTyped, "a"))
+	require.False(t, rawConfigHasAnyAttr(nullTyped, "b"))
+}

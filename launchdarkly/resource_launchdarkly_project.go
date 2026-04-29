@@ -193,9 +193,9 @@ func resourceProjectRead(ctx context.Context, d *schema.ResourceData, metaRaw in
 	return projectRead(ctx, d, metaRaw, false)
 }
 
-func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
-	client := metaRaw.(*Client)
-	projectKey := d.Get(KEY).(string)
+// buildProjectUpdatePatches assembles the JSON Patch document for resourceProjectUpdate.
+// Extracted so the CSA/IIS fallback decision can be unit-tested without a live LD client.
+func buildProjectUpdatePatches(d *schema.ResourceData) []ldapi.PatchOperation {
 	projName := d.Get(NAME)
 	projTags := stringsFromResourceData(d, TAGS)
 	includeInSnippet := optionalBoolFromResourceData(d, INCLUDE_IN_SNIPPET, false)
@@ -217,21 +217,39 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw 
 		patchReplace("/tags", &projTags),
 	}
 
-	if clientSideAvailabilityOk && clientSideHasChange {
+	// Upjet/embedded schemas may strip the deprecated INCLUDE_IN_SNIPPET and the
+	// DEFAULT_CLIENT_SIDE_AVAILABILITY block. In that case neither attribute is in the user's
+	// config and we must not append a fallback /defaultClientSideAvailability patch — doing so
+	// would overwrite server-side defaults on every "tags only" update.
+	schemaExposesCSAOrIIS := rawConfigHasAnyAttr(d.GetRawConfig(), INCLUDE_IN_SNIPPET, DEFAULT_CLIENT_SIDE_AVAILABILITY)
+
+	switch {
+	case clientSideAvailabilityOk && clientSideHasChange:
 		patch = append(patch, patchReplace("/defaultClientSideAvailability", defaultClientSideAvailability))
-	} else if includeInSnippetOk && snippetHasChange {
+	case includeInSnippetOk && snippetHasChange:
 		// If includeInSnippet is set, still use clientSideAvailability behind the scenes in order to switch UsingMobileKey to false if needed
 		patch = append(patch, patchReplace("/defaultClientSideAvailability", &ldapi.ClientSideAvailabilityPost{
 			UsingEnvironmentId: includeInSnippet,
 			UsingMobileKey:     true,
 		}))
-	} else {
-		// If the user doesn't set either CSA or IIS in config, we set defaults to match API behaviour
+	case schemaExposesCSAOrIIS:
+		// If the user doesn't set either CSA or IIS in config, we set defaults to match API behaviour.
+		// Only do this when the schema actually exposes those attributes; otherwise we'd overwrite
+		// server-side state that the user never opted into managing via Terraform.
 		patch = append(patch, patchReplace("/defaultClientSideAvailability", &ldapi.ClientSideAvailabilityPost{
 			UsingEnvironmentId: false,
 			UsingMobileKey:     true,
 		}))
 	}
+
+	return patch
+}
+
+func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, metaRaw interface{}) diag.Diagnostics {
+	client := metaRaw.(*Client)
+	projectKey := d.Get(KEY).(string)
+
+	patch := buildProjectUpdatePatches(d)
 
 	var err error
 	err = client.withConcurrency(client.ctx, func() error {
